@@ -19,7 +19,7 @@
 
 ### 1. Клонирование репозитория
 ```bash
-git clone [https://github.com/stapowi2/zheu-system.git](https://github.com/stapowi2/zheu-system.git)
+git clone https://github.com/stapowi2/zheu-system.git
 cd zheu-system
 ```
 
