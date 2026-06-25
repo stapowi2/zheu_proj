@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Тестирование пуш-уведомлений</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; line-height: 1.6; }
+        .container { max-width: 500px; margin: 0 auto; }
+        input { width: 100%; padding: 10px; margin: 10px 0; box-sizing: border-box; }
+        button { padding: 10px 15px; margin-right: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Проверка Web Push</h2>
+    
+    <label for="token-input"><b>Вставь сюда актуальный Access Token пользователя:</b></label>
+    <input type="text" id="token-input" placeholder="eyJhbGciOiJIUzI1Ni...">
+
+    <br><br>
+    <button id="btn">Разрешить уведомления и подписаться</button>
+    <button id="unsubscribe-btn">Отписаться от уведомлений</button>
+</div>
+
+    <script>
+        const publicKey = 'BCDkxs3bTAf71ecwlpAulCf9pMcmllFzOC7xPK0LlSlv-hDNygrySIIOJ3mUh0SKRqJQXJn2rSitJL3XP5BGyHo';
+
+        function getAuthToken() {
+            const token = document.getElementById('token-input').value.trim();
+            if (!token) {
+                alert('вставь актуальный токен в поле ввода!');
+                throw new Error('Токен не указан');
+            }
+            return token.startsWith('Bearer ') ? token : 'Bearer ' + token;
+        }
+
+        document.getElementById('btn').onclick = async () => {
+            try {
+                const token = getAuthToken();
+                const reg = await navigator.serviceWorker.register('/sw.js');
+                
+                const sub = await reg.pushManager.subscribe({
+                    userVisibleOnly: true,
+                    applicationServerKey: publicKey
+                });
+
+                const response = await fetch('/notifications/register', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json', 
+                        'Authorization': token 
+                    },
+                    body: JSON.stringify({
+                        endpoint: sub.endpoint,
+                        p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('p256dh')))),
+                        auth: btoa(String.fromCharCode(...new Uint8Array(sub.getKey('auth'))))
+                    })
+                });
+
+                if (response.status === 401) {
+                    alert('Бэкенд вернул 401 Unauthorized! необходимо обновить токен в поле ввода.');
+                    return;
+                }
+
+                if (!response.ok) {
+                    alert('Ошибка сервера: ' + response.status);
+                    return;
+                }
+
+                alert('Подписка успешно отправлена на сервер и сохранена в БД!');
+            } catch (err) {
+                console.error('Ошибка подписки:', err);
+            }
+        };
+
+        document.getElementById('unsubscribe-btn').addEventListener('click', async () => {
+            try {
+                await unsubscribeUser();
+                alert('Вы успешно отписались!');
+            } catch (error) {
+                console.error('Ошибка при отписке:', error);
+                alert('Не удалось отписаться');
+            }
+        });
+
+        async function unsubscribeUser() {
+            const token = getAuthToken();
+            const registration = await navigator.serviceWorker.ready;
+            const subscription = await registration.pushManager.getSubscription();
+            
+            if (subscription) {
+                await subscription.unsubscribe();
+                
+                await fetch('/notifications/unsubscribe', {
+                    method: 'POST',
+                    headers: { 'Authorization': token }
+                });
+                
+                console.log('Пользователь отписан на сервере');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+.env
+*.env
+
+/dist/
+/bin/
+zheu-system
+vendor/
+
+postgres_data/
+redis_data/
+
+.vscode/
+.DS_Store

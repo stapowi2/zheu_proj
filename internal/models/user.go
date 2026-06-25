@@ -1,0 +1,28 @@
+package models
+
+import (
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+)
+
+type User struct {
+	gorm.Model
+	Username string `gorm:"unique;not null"`
+	Password string `gorm:"not null"`
+	Role     string `gorm:"default:resident"` 
+}
+
+
+func (u *User) HashPassword(password string) error {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	u.Password = string(bytes)
+	return nil
+}
+
+
+func (u *User) CheckPassword(providedPassword string) error {
+	return bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(providedPassword))
+}
